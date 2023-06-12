@@ -5,8 +5,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @Slf4j
@@ -19,7 +24,37 @@ public class HomeController {
        logger.info("User is : {}",authentication.getCredentials());
        logger.info("User is : {}",authentication.getDetails());
        logger.info("User is : {}",authentication.getAuthorities());
-
         return   " Hello  "+authentication.getName();
+    }
+
+
+    @GetMapping("/blockadmin")
+    public String roleBasedMethod(){
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if(authentication!=null){
+            System.out.println("Role of user : "+authentication.getAuthorities());
+
+           List<String> loginRoles =  authentication.getAuthorities()
+                    .stream().map(Object::toString)
+                    .toList();
+            System.out.println("Login Roles :"+loginRoles);
+         List<String> adminRole =   loginRoles.stream().filter(
+                   e->e.equalsIgnoreCase("scope_admin")
+           ).toList();
+
+         if(adminRole.size()==0){
+             return "Not an admin, cannot do this action! ";
+         }else {
+             return "Successfully block another admin ";
+         }
+        }
+        return null;
+    }
+
+    @GetMapping("/testing")
+    public  String testing(){
+
+        System.out.println("hello Testing !");
+        return "Hello Testing!!";
     }
 }
