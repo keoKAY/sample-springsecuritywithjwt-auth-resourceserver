@@ -1,6 +1,8 @@
 package com.istad.friendlyjwt.controller;
 
 
+import com.istad.friendlyjwt.security.UserDetailImpl;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,5 +58,27 @@ public class HomeController {
 
         System.out.println("hello Testing !");
         return "Hello Testing!!";
+    }
+
+
+    @GetMapping("/welcome")
+    public String welcomePage(){
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        UserDetailImpl user = (UserDetailImpl) authentication.getPrincipal();
+        System.out.println("Information of logined user : "+user);
+        List<String> userRoles = user.getAuthorities().stream()
+                .map(Object::toString).toList();
+
+        System.out.println("User Roles is : "+userRoles);
+        if(userRoles.contains("ADMIN")){
+            return "Welcome to the Admin Dashboard !! ";
+        }else {
+            return "Welcome to the user Feed !! ";
+
+        }
+
+
     }
 }

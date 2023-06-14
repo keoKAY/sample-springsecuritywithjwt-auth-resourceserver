@@ -14,11 +14,16 @@ public class UserDetailServiceImpl implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         var authenticatedUser   = userRepository.loadUserByUsername(username);
+
         if(authenticatedUser!=null){
             System.out.println("*********************************************");
             System.out.println("User from the database is : "+authenticatedUser);
-            UserDetailImpl user= new UserDetailImpl();
-            user.setUser(authenticatedUser);
+            System.out.println("*********************************************");
+
+            UserDetailImpl user= new UserDetailImpl(authenticatedUser);
+            user.setId(authenticatedUser.getId());
+            user.setUsername(authenticatedUser.getUsername());
+            user.setPassword(authenticatedUser.getPassword());
             return user;
         }
         return null;

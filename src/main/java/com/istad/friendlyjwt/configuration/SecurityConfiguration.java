@@ -2,6 +2,8 @@ package com.istad.friendlyjwt.configuration;
 
 
 import com.istad.friendlyjwt.security.UserDetailServiceImpl;
+import com.istad.friendlyjwt.security.utils.JwtToUserConverter;
+import com.istad.friendlyjwt.security.utils.KeyUtils;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
@@ -9,8 +11,10 @@ import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.SecurityConfigurer;
@@ -28,6 +32,9 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationProvider;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
+import org.springframework.security.oauth2.server.resource.web.access.BearerTokenAccessDeniedHandler;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -41,6 +48,10 @@ import java.security.interfaces.RSAPublicKey;
 public class SecurityConfiguration {
     @Autowired
     private UserDetailsService userDetailsService;
+    @Autowired
+    private JwtToUserConverter jwtToUserConverter;
+    @Autowired
+    KeyUtils keyUtils;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -58,20 +69,85 @@ public class SecurityConfiguration {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
-        return http.csrf(AbstractHttpConfigurer::disable)
+  /*      return http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(request -> request.
-                        requestMatchers("login","testing").permitAll()
+                        requestMatchers("api/v1/auth/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(OAuth2ResourceServerConfigurer::jwt)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-               /* .httpBasic(Customizer.withDefaults())*/
-                .build();
+               *//* .httpBasic(Customizer.withDefaults())*//*
+                .build();*/
+
+
+        http.authorizeHttpRequests((authorize) ->
+                        authorize.requestMatchers("/api/v1/auth/**").permitAll()
+                                .anyRequest().authenticated()
+                ).csrf().disable()
+                .cors().disable()
+                .httpBasic().disable()
+                .oauth2ResourceServer((oauth2)-> oauth2.jwt((jwtConfigurer -> jwtConfigurer.jwtAuthenticationConverter(jwtToUserConverter))))
+                .sessionManagement(session->session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exp ->
+                        exp.authenticationEntryPoint(new BearerTokenAuthenticationEntryPoint())
+                                .accessDeniedHandler(new BearerTokenAccessDeniedHandler())) ;
+        return http.build();
     }
+
+    // jwtProvider
+    // jwtEncoder
+    // jwtEncoder for refreshtoken
+    // jwtDecoder and decoder  for refresh token
+    @Bean
+    @Primary
+    JwtDecoder jwtAccessTokenDecoder() {
+        return NimbusJwtDecoder.withPublicKey(keyUtils.getAccessTokenPublicKey()).build();
+    }
+
+    @Bean
+    @Primary
+    JwtEncoder jwtAccessTokenEncoder() {
+        JWK jwt = new RSAKey.Builder(keyUtils.getAccessTokenPublicKey()).privateKey(keyUtils.getAccessTokenPrivateKey()).build();
+        JWKSource<SecurityContext> jwtSource = new ImmutableJWKSet<>(new JWKSet(jwt));
+        return new NimbusJwtEncoder(jwtSource);
+    }
+
+    @Bean
+    @Qualifier("jwtRefreshTokenDecoder")
+    JwtDecoder jwtRefreshTokenDecoder() {
+        return NimbusJwtDecoder.withPublicKey(keyUtils.getRefreshTokenPublicKey()).build();
+
+    }
+
+    @Bean
+    @Qualifier("jwtRefreshTokenEncoder")
+    JwtEncoder jwtRefreshTokenEncoder() {
+        JWK jwk = new RSAKey.Builder(keyUtils.getRefreshTokenPublicKey())
+                .privateKey(keyUtils.getRefreshTokenPrivateKey())
+                .build();
+
+        JWKSource<SecurityContext> jwtSource = new ImmutableJWKSet<>(new JWKSet(jwk));
+        return new NimbusJwtEncoder(jwtSource);
+    }
+
+
+    /// create the converter in order to convert the token to the object.
+    @Bean
+    @Qualifier("jwtRefreshTokenAuthProvider")
+    JwtAuthenticationProvider jwtRefreshTokenAuthProvider() {
+        JwtAuthenticationProvider provider = new JwtAuthenticationProvider(jwtRefreshTokenDecoder());
+        provider.setJwtAuthenticationConverter(jwtToUserConverter);
+        return provider;
+    }
+
+
+
+
+
 
     // 1: keypair
 
-    @Bean
+ /*   @Bean
     public KeyPair keyPair() {
         try {
 
@@ -98,6 +174,6 @@ public class SecurityConfiguration {
     @Bean
     public JwtDecoder jwtDecoder() {
         return NimbusJwtDecoder.withPublicKey((RSAPublicKey) keyPair().getPublic()).build();
-    }
+    }*/
 
 }

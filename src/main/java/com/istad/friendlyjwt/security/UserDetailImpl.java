@@ -12,29 +12,32 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 @Data
 @NoArgsConstructor
 public class UserDetailImpl implements UserDetails {
-    private User user;
+    private int id;
+    private String username;
+    private String password;
+    List<GrantedAuthority> authorities;
+    public UserDetailImpl(User user) {
+        this.authorities = user.getRoles().stream().map(SimpleGrantedAuthority::new).collect(Collectors.toList());
+    }
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        List<SimpleGrantedAuthority> authorities = new ArrayList<>();
-        for (String role : user.getRoles()){
-            authorities.add(new SimpleGrantedAuthority(role));
-        }
         return authorities;
     }
 
     @Override
     public String getPassword() {
-        return user.getPassword();
+        return password;
     }
 
     @Override
     public String getUsername() {
-        return user.getUsername();
+        return username;
     }
 
     @Override
